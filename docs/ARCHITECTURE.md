@@ -55,9 +55,9 @@ events; seen IDs and known review records accumulate. Partial failures retain th
 last successful source state. New products are picked up on subsequent checks.
 Historical timestamps are compared to tracking_started_at for silent backfill.
 
-Ordinary events use Windows toasts, whose OS acceptance is recorded separately.
-Text reviews and comments use the persistent window and require human confirmation. Test reviews
-exercise that same window through a separate database/task, without a Fab request.
+Events follow per-kind notification policies. OS delivery is recorded separately
+from explicit human acknowledgement. Local tests exercise the same reminder path
+through a separate database/task, without a Fab request.
 
 ## Installer contract
 

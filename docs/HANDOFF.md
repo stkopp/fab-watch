@@ -11,6 +11,9 @@ See docs/RELEASING.md for ongoing maintenance.
 updates.py adds GitHub release checking and verified downloads, with explicit
 installation confirmation and optional local-file installation retained. Collection
 and notification state are unchanged. Packaging includes runtime license notices.
+Publication validation: all 29 local tests passed, including the actual installer
+payload and updater integrity cases. Windows CI also built and passed all tests.
+The Updates dialog was visually inspected using an isolated temporary profile.
 No manual clean-Windows or reboot test was requested/performed for publication.
 
 The sections below record historical work and limitations at those versions; they
