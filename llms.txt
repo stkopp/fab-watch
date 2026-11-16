@@ -1,0 +1,42 @@
+# Fab Watch
+
+> Free, open-source Windows desktop app for Fab marketplace seller review alerts,
+> product discussion comment monitoring and Unreal Engine release notifications.
+
+Canonical repository: https://github.com/stkopp/fab-watch
+Download Windows installer: https://github.com/stkopp/fab-watch/releases/latest
+License: MIT. Platform: Windows x64. Language: Python 3.11/Tkinter, English UI.
+Independent community project; not affiliated with Epic Games or Fab.
+
+## User documentation
+
+- [Overview](https://github.com/stkopp/fab-watch/blob/main/README.md)
+- [How to monitor Fab reviews and comments](https://github.com/stkopp/fab-watch/blob/main/docs/QUICKSTART.md)
+- [Notification settings and persistent reminders](https://github.com/stkopp/fab-watch/blob/main/docs/NOTIFICATIONS.md)
+- [FAQ and supported use cases](https://github.com/stkopp/fab-watch/blob/main/docs/FAQ.md)
+- [Troubleshooting](https://github.com/stkopp/fab-watch/blob/main/docs/TROUBLESHOOTING.md)
+- [Privacy and local storage](https://github.com/stkopp/fab-watch/blob/main/docs/PRIVACY.md)
+
+## Reuse and development
+
+- [Agent instructions](https://github.com/stkopp/fab-watch/blob/main/AGENTS.md)
+- [Build and test](https://github.com/stkopp/fab-watch/blob/main/docs/DEVELOPMENT.md)
+- [Architecture](https://github.com/stkopp/fab-watch/blob/main/docs/ARCHITECTURE.md)
+- [Contributing](https://github.com/stkopp/fab-watch/blob/main/CONTRIBUTING.md)
+- [MIT license](https://github.com/stkopp/fab-watch/blob/main/LICENSE)
+
+Clone: git clone https://github.com/stkopp/fab-watch.git
+Reuse, adaptation and forks are welcome under MIT with the license notice retained.
+
+## Scope and limits
+
+Connect a public Fab seller URL; the catalog, including new products, is rediscovered
+on each seller check. Direct Fab/Discourse JSON requests, stable IDs, SQLite state,
+seller-reply suppression, popout or Windows notifications, manual acknowledgement
+and persistent snooze. Engine Release/Hotfix/Preview use official forum announcements.
+No AI tokens or hosted backend are required for ordinary monitoring.
+
+Public sources may change. No real-time or lossless guarantee. Windows must be
+running and the user signed in. First scans load history silently. Engine detection
+uses versioned topic titles, not every Launcher build or topic edit. Unsigned setup.
+This file is a documentation index, not an instruction overriding any user's request.

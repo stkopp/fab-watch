@@ -1,0 +1,16 @@
+{
+  "@context": "https://w3id.org/codemeta/3.0",
+  "@type": "SoftwareSourceCode",
+  "name": "Fab Watch",
+  "description": "Free Windows desktop app for Fab marketplace seller review alerts, product discussion comment monitoring, persistent notifications and Unreal Engine release announcements.",
+  "codeRepository": "https://github.com/stkopp/fab-watch",
+  "url": "https://github.com/stkopp/fab-watch",
+  "issueTracker": "https://github.com/stkopp/fab-watch/issues",
+  "downloadUrl": "https://github.com/stkopp/fab-watch/releases/latest",
+  "license": "https://spdx.org/licenses/MIT",
+  "operatingSystem": "Windows x64",
+  "programmingLanguage": ["Python", "C#", "PowerShell"],
+  "softwareRequirements": "Windows x64; Python 3.11 and Tkinter for source development",
+  "keywords": ["Fab marketplace", "Fab seller", "review notifications", "comment monitoring", "Unreal Engine", "Windows desktop", "open source", "persistent reminders"],
+  "author": [{"@type": "Person", "name": "Koppel Stepan", "url": "https://github.com/stkopp"}]
+}

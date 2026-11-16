@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Installation, settings and troubleshooting
+    url: https://github.com/stkopp/fab-watch/blob/main/docs/QUICKSTART.md
+    about: Start with the user guide and linked troubleshooting steps.
+  - name: Security policy
+    url: https://github.com/stkopp/fab-watch/security/policy
+    about: Please avoid disclosing vulnerabilities in public issues.

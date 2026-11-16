@@ -1,0 +1,30 @@
+name: Bug report
+description: Report a reproducible Fab Watch problem
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Fab Watch and Windows versions
+      placeholder: Fab Watch 1.3.1, Windows 11 x64
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps, expected result and actual result
+      description: Include the event type and check/repeat/channel settings for notification problems.
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Sanitized diagnostics or screenshots
+      description: Do not attach credentials, full databases or private information. Include Check details error text if relevant.
+  - type: checkboxes
+    id: checked
+    attributes:
+      label: Before submitting
+      options:
+        - label: I checked the latest release, troubleshooting guide and existing issues.
+          required: true
