@@ -69,8 +69,9 @@ of source checks. Snooze persists across restarts. Windows banners include a
 
 ![Per-event notification settings for Fab comments, reviews and Unreal Engine versions](docs/screenshots/notifications.jpg)
 
-Screenshots show the author's public seller profile in v1.3.0 as a usage example.
-The current app may differ slightly. No seller data shown here is bundled as a default.
+Screenshots use synthetic demo data: Example Studio, fictional products and sample
+buyers/messages. Engine dates shown are examples, not a release calendar. No demo
+profile is bundled as an application default. Reproduce these views with tools/demo.py.
 
 ## Documentation
 

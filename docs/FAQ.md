@@ -62,8 +62,8 @@ identify the services it monitors; there is no claim of affiliation or endorseme
 
 Requests go to Fab and Epic forum endpoints to fetch public content, and to GitHub
 to check/download app releases. There is no app analytics or account registration.
-See [privacy](PRIVACY.md). Screenshots in the repository show the author's public
-seller profile as an example; that profile is not included in app defaults.
+See [privacy](PRIVACY.md). Screenshots in the repository use a fictional seller and synthetic example messages.
+No demo profile is included in app defaults.
 
 ## How can I help?
 

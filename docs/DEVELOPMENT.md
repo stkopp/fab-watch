@@ -76,3 +76,12 @@ Windows CI builds before testing so the package regression is not skipped. The
 tests briefly create Tk windows/tray icons and do not install the app. Hosted CI
 coverage is not a manual clean-Windows installation test. Build/runtime license
 notices are collected by tools/package_notices.py. See [releasing](RELEASING.md).
+
+## Documentation screenshots
+
+Run `python tools/demo.py` for a real UI with synthetic Example Studio products,
+reviews and comments in a temporary directory. Network collection and scheduler
+mutations are mocked. The process does not start the reminder worker or tray.
+Optional arguments `engine` and `notifications` select those views. Closing the
+window removes temporary state. Capture the actual window with your screenshot tool.
+The demo data is not loaded by the packaged app and is never posted publicly.

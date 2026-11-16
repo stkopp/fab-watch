@@ -17,8 +17,8 @@ Local data is in `%LOCALAPPDATA%\FabWatch`:
 - `update-state.json` and `updates/`: app version-check cache and downloaded installers.
 - Logs, incident reports and backups: troubleshooting and explicit fresh-start archives.
 
-No profile/database/log is included in release packages. Public screenshots are
-author-supplied examples, not factory settings. Updating preserves your local data.
+No profile/database/log is included in release packages. Documentation screenshots use
+synthetic examples, not factory settings. Updating preserves your local data.
 Uninstalling leaves it available for reinstallation. Setup's explicit fresh-start
 option first archives existing profiles. Remove local data/backups yourself only
 if you intend to discard all history and confirmations.

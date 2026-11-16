@@ -3,7 +3,7 @@
 ## Current: 1.3.1 public GitHub release — 2026-11-16
 
 Canonical source: https://github.com/stkopp/fab-watch. Owner selected MIT and
-authorized publication of the supplied screenshots. Public docs, issue/PR templates,
+authorized publication; screenshots now use synthetic demo data. Public docs, issue/PR templates,
 FAQ, llms.txt and codemeta.json explain use and reuse. GitHub CI builds/tests Windows
 and tagged releases publish the installer and checksums only after successful checks.
 See docs/RELEASING.md for ongoing maintenance.

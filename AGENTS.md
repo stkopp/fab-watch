@@ -62,7 +62,7 @@ respond to the user in their language.
   Do not delete a damaged database or silently create a new baseline to hide errors.
 - No tokens, local profiles or machine-specific absolute paths in source, fixtures,
   documentation or release archives. Use synthetic fixtures. Author credits and
-  owner-supplied public screenshots are intentional documentation examples.
+  synthetic demo screenshots are intentional documentation examples.
 - Keep dependencies small. Do not replace the native UI with a browser framework
   or add an always-running AI agent without a requirement for that change.
 

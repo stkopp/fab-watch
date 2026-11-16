@@ -37,8 +37,8 @@ publication; fix a bad release with a new version, not silent binary replacement
 Check the anonymous release/download URLs, asset digest and README links/screenshots.
 Exercise the updater against the real metadata without executing a downloaded file
 unless installation is part of the requested work. Recheck the repository contains
-no local data or machine paths. The supplied screenshots and author credit are
-intentional public examples, not secrets or runtime defaults.
+no local data or machine paths. Screenshots use synthetic examples. Author credits are intentional attribution,
+not runtime defaults.
 
 ## Maintenance routine
 
@@ -54,7 +54,7 @@ fake reviews, keyword spam or unsupported feature claims.
 ## License provenance
 
 MIT was selected by the project owner for public distribution. Original project
-assets are included; supplied screenshots show the author's public seller activity.
+assets are included; documentation screenshots show synthetic demo activity.
 Third-party text/trademarks retain their owners' rights. Runtime notices are copied
 by `tools/package_notices.py`. `licenses/Tcl-8.6.12.txt` is the unmodified license from
 https://raw.githubusercontent.com/tcltk/tcl/core-8-6-12/license.terms, matching the
