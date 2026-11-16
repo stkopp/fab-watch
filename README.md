@@ -16,7 +16,7 @@ Paste your seller URL once. Fab Watch finds your products, checks their public
 reviews and Epic Developer Community discussion comments, and discovers new
 products automatically. It runs locally without AI tokens or a hosted backend.
 
-![Fab Watch activity: product reviews, forum comments, seller identity and next check](docs/screenshots/main.jpg)
+![Fab Watch activity: product reviews, forum comments, seller identity and next check](docs/screenshots/demo-main.jpg)
 
 ## Why use it?
 
@@ -59,7 +59,7 @@ The **Unreal Engine** tab monitors official Epic announcement topics independent
 of your Fab seller. Configure Release, Hotfix and Preview separately. Release and
 Preview checks default to every 720 minutes; Hotfix is disabled initially.
 
-![Unreal Engine announcement history with release and preview versions](docs/screenshots/engine.jpg)
+![Unreal Engine announcement history with release and preview versions](docs/screenshots/demo-engine.jpg)
 
 ## Configure each kind of notification
 
@@ -67,7 +67,7 @@ Choose Popout, Windows notifications, or None; set reminder intervals independen
 of source checks. Snooze persists across restarts. Windows banners include a
 30-minute snooze action; popouts and tables offer a custom delay.
 
-![Per-event notification settings for Fab comments, reviews and Unreal Engine versions](docs/screenshots/notifications.jpg)
+![Per-event notification settings for Fab comments, reviews and Unreal Engine versions](docs/screenshots/demo-notifications.jpg)
 
 Screenshots use synthetic demo data: Example Studio, fictional products and sample
 buyers/messages. Engine dates shown are examples, not a release calendar. No demo
