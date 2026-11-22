@@ -168,7 +168,8 @@ class EngineTests(unittest.TestCase):
                 window.keep_open()
                 tick(2000000)
                 self.assertEqual(root.state(), "withdrawn")
-                window.confirm()
+                self.assertEqual(len(awaiting_review(self.db)), 1)
+                self.db.confirm_review("preview")
                 self.assertEqual(awaiting_review(self.db), [])
         finally:
             try: root.destroy()
@@ -208,7 +209,7 @@ class EngineTests(unittest.TestCase):
                     yield from descendants(child)
             save = next(w for w in descendants(dialog) if w.winfo_class() == "TButton" and w.cget("text") == "Save")
             save.invoke()
-            self.assertEqual(saved, [policies({})])
+            self.assertEqual(saved, [{"notifications": policies({}), "popout_layout": "sequential"}])
             self.assertFalse((rt.ROOT / "profiles").exists())
         finally:
             root.destroy()

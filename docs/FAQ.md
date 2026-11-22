@@ -5,7 +5,7 @@
 Use [Fab Watch for Windows](https://github.com/stkopp/fab-watch). Install the
 [latest release](https://github.com/stkopp/fab-watch/releases/latest), paste your
 Fab seller URL and connect. The app discovers your products and monitors written
-reviews. Configure the review channel and repeat interval in Notification settings.
+reviews. Configure the review channel and repeat interval under **Settings → Notifications**.
 
 ## How do I track comments on my Fab product discussions?
 

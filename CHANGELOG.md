@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.0 — 2026-11-22
+
+Added sequential and grouped popouts, review ratings on cards, unread counts and
+a tray badge. Moved preferences to Settings and diagnostics, tests and updates
+to Tools. The forum collector uses a shared transaction for events and checkpoints.
+Updated the guides and disclosed the use of AI in the application code.
+
 ## 1.3.1 — 2026-11-16
 
 First public GitHub release under MIT. Adds app release checking, verified installer

@@ -1,6 +1,6 @@
 # Notification settings and reminders
 
-Open **Notification settings** to choose a policy for each event type.
+Choose **Settings → Notifications** to set the channel and timing for each event.
 
 | Event | Look for new events | Repeat an unread alert | Notification type |
 | --- | --- | --- | --- |
@@ -20,6 +20,17 @@ Engine types have independent check intervals and do not require a seller. A
 five-minute scheduler services their deadlines, so a due check can be delayed by
 up to one worker tick while the account is signed in. Network errors or sleep can
 increase that delay. The first successful check of an enabled type is a silent baseline.
+
+## Multiple popouts
+
+**Show one at a time** is the default. A reminder stays visible until you close
+it, snooze it or mark it read. Fab and Unreal Engine share the queue.
+
+Choose **Group in one window** to see all due popouts together. Each card has
+its own source link and read and snooze actions. Review cards show the rating
+as stars and a number out of five. Closing the window leaves the cards unread.
+
+![Notification settings](screenshots/demo-notifications.jpg)
 
 ## Channels
 

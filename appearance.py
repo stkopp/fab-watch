@@ -24,6 +24,8 @@ def theme(root):
     style.configure("TButton", padding=(12, 7), background=RAISED)
     style.map("TButton", background=[("disabled", PANEL), ("pressed", PRESSED), ("active", HOVER)],
               foreground=[("disabled", "#858090"), ("!disabled", TEXT)])
+    style.configure("TMenubutton", padding=(12, 7), background=RAISED, arrowcolor=ACCENT)
+    style.map("TMenubutton", background=[("pressed", PRESSED), ("active", HOVER)])
     style.configure("Accent.TButton", background="#a875f6", foreground="#170c26", font=(FONT, 10, "bold"))
     style.map("Accent.TButton", background=[("disabled", PANEL), ("pressed", "#c29afc"), ("active", "#bf9aff")],
               foreground=[("disabled", "#858090"), ("!disabled", "#170c26")])

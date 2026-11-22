@@ -1,6 +1,6 @@
 # App updates
 
-Open **Updates…** to check the official
+Open **Tools → App updates…** to check
 [GitHub Releases](https://github.com/stkopp/fab-watch/releases). When a newer stable
 release is available, use **Download and install**. Fab Watch rechecks release
 metadata, downloads the matching Windows x64 installer and verifies its size and

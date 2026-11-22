@@ -107,3 +107,25 @@ The main/tray UI checks daily while running; errors remain errors, not up-to-dat
 claims. Downloading rechecks metadata, restricts HTTPS redirect hosts, enforces
 size bounds and verifies the GitHub SHA-256 digest. Only an explicit user action
 executes setup. update-state.json caches availability; it contains no seller data.
+
+## Popout queue and source extension (1.4.0)
+
+The seller and Engine reminder tasks enter the same worker and take the same
+lock. It reads the active seller and Engine databases, sorts due popouts by
+detection time, and records delivery for each item when its card is shown.
+Synthetic tests retain a separate worker, database and lock. Closing a window
+does not acknowledge any item. The tray and Activity views derive unread
+counts from persisted event state, including snoozed events.
+
+Feed new source adapters into the same state and delivery model. The forum
+collector fetches a complete snapshot, maps new posts to stable event IDs and
+payloads, and calls `Store.commit_source_batch()` to save the events and
+checkpoint in one transaction. The next adapter should own its fetch and
+normalization, supply a scope/stage for its checkpoint, and register its
+event types before exposing them in the feed and notification policies.
+
+An authenticated sales or mail connector will need its own opt-in account
+setup and credential/session storage. Keep browser cookies and API credentials
+outside the public fetcher and event database. An embedded browser may handle
+sign-in after the source interface, privileges and session isolation have been
+decided. No authenticated connector or browser runtime is bundled in 1.4.0.

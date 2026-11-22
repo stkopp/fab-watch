@@ -20,12 +20,12 @@ The suite is Windows-specific and needs an interactive desktop for Tk/native tra
 tests. It uses synthetic temporary state and mocks network/task mutation calls.
 It does not install the application or modify a real seller's database.
 
-Build products go to `.build/` and `dist/FabWatchSetup-1.3.1-x64.exe`. Both directories
+Build products go to `.build/` and `dist/FabWatchSetup-1.4.0-x64.exe`. Both directories
 are ignored by Git. You can keep the source directory completely free of products:
 
 ```powershell
 .\build.ps1 -Python (Resolve-Path .\.venv\Scripts\python.exe).Path -BuildDir C:\Temp\FabWatch-build -OutputDir C:\Temp\FabWatch-dist
-$env:FABWATCH_TEST_PACKAGE = 'C:\Temp\FabWatch-dist\FabWatchSetup-1.3.1-x64.exe'
+$env:FABWATCH_TEST_PACKAGE = 'C:\Temp\FabWatch-dist\FabWatchSetup-1.4.0-x64.exe'
 .\.venv\Scripts\python.exe -B -m unittest discover -s tests -v
 Remove-Item Env:\FABWATCH_TEST_PACKAGE
 ```
@@ -82,6 +82,6 @@ notices are collected by tools/package_notices.py. See [releasing](RELEASING.md)
 Run `python tools/demo.py` for a real UI with synthetic Example Studio products,
 reviews and comments in a temporary directory. Network collection and scheduler
 mutations are mocked. The process does not start the reminder worker or tray.
-Optional arguments `engine` and `notifications` select those views. Closing the
+Optional arguments `engine` `notifications` and `reminders` select those views. Closing the
 window removes temporary state. Capture the actual window with your screenshot tool.
 The demo data is not loaded by the packaged app and is never posted publicly.

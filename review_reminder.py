@@ -1,205 +1,295 @@
+"""Notification delivery and the shared live popout queue."""
 import logging
+import sqlite3
 import time
 import tkinter as tk
 import webbrowser
-from logging.handlers import RotatingFileHandler
-from tkinter import scrolledtext, ttk
+from pathlib import Path
+from tkinter import ttk
+from urllib.parse import urlencode
 
 from authors import own_message
-from appearance import BG, TEXT, FONT
+from appearance import ACCENT, BG, EDGE, FONT, MUTED, PANEL, TEXT
 from storage import Store, exclusive
 from transport import SourceError, validate_url
 from notifications import PlainText, send, summary
-from notification_policy import policies, due, remember, LABELS, snooze, ask_snooze
-
-INTERVAL = 600
+from notification_policy import policies, due, remember, LABELS, snooze, ask_snooze, popout_layout
 
 
 def awaiting_review(db):
-    # Compatibility name: this queue now includes comments, even ones previously
-    # accepted by Windows toasts. Only explicit user confirmation stops them.
     return [event for event in db.records(reminders=True) if not own_message(event)]
+
+
+def rating_text(review):
+    rating = review.get("rating")
+    if type(rating) not in (float, int) or rating not in range(1, 6):
+        return ""
+    stars = int(rating)
+    return f"{stars}/5   " + "★" * stars + "☆" * (5 - stars)
+
+
+def card_content(event):
+    kind = event["kind"]
+    if kind == "new_review":
+        review = event.get("review") or {}
+        return (event.get("product"), review.get("authorDisplayName"), review.get("createdAt"),
+                review.get("title"), review.get("content"), rating_text(review))
+    if kind == "new_comment":
+        parser = PlainText()
+        parser.feed(event.get("content_html") or "")
+        return (event.get("product"), event.get("author"), event.get("created_at"),
+                None, " ".join(parser.parts), "")
+    return (event.get("title") or event.get("product"), None, event.get("created_at"),
+            None, summary(event, 2000), "")
 
 
 class ReviewWindow:
     def __init__(self, root, db, is_active, config_provider=lambda: {}):
-        self.root, self.db, self.is_active = root, db, is_active
+        self.root, self.is_active = root, is_active
+        self.databases = db if callable(db) else lambda config: (db,)
         self.config_provider = config_provider
-        self.policy = {}
-        self.active = None
+        self.shown = {}
         self.timer = None
-        root.title("Fab Watch | New review")
-        root.minsize(510, 300)
-        root.geometry("600x385")
+        self.layout = None
+        self.snooze_dialog = False
+        root.title("Fab Watch")
+        root.minsize(550, 320)
+        root.geometry("640x490")
         root.protocol("WM_DELETE_WINDOW", self.keep_open)
-        frame = ttk.Frame(root, padding=18)
-        frame.pack(fill="both", expand=True)
-        self.heading = ttk.Label(frame, font=(FONT, 15, "bold"), wraplength=520)
-        self.heading.pack(anchor="w")
-        self.details = ttk.Label(frame, wraplength=520)
-        self.details.pack(anchor="w", pady=(4, 12))
-        self.body = scrolledtext.ScrolledText(frame, font=(FONT, 11), height=6, wrap="word",
-                                             bg=BG, fg=TEXT, relief="flat", padx=10, pady=8)
-        self.body.pack(fill="both", expand=True)
-        self.status = ttk.Label(frame, wraplength=520)
-        self.status.pack(anchor="w", pady=(9, 9))
-        controls = ttk.Frame(frame)
-        controls.pack(fill="x")
-        self.open_button = ttk.Button(controls, text="Open on Fab", command=self.open_review)
-        self.open_button.pack(side="left")
-        ttk.Button(controls, text="Remind me later", command=self.remind_later).pack(side="left", padx=6)
-        ttk.Button(controls, text="Mark as read", command=self.confirm,
-                   style="Accent.TButton").pack(side="right")
         root.attributes("-topmost", True)
+        frame = tk.Frame(root, bg=BG, padx=18, pady=16)
+        frame.pack(fill="both", expand=True)
+        self.heading = tk.Label(frame, bg=BG, fg=TEXT, font=(FONT, 17, "bold"), anchor="w")
+        self.heading.pack(fill="x", pady=(0, 10))
+        footer = tk.Label(frame, text="Closing this window leaves the items unread.",
+                          bg=BG, fg=MUTED, font=(FONT, 9), anchor="w")
+        footer.pack(side="bottom", fill="x", pady=(10, 0))
+        self.status = tk.Label(frame, bg=BG, fg=ACCENT, font=(FONT, 9), anchor="w")
+        self.status.pack(side="bottom", fill="x")
+        viewport = tk.Frame(frame, bg=BG)
+        viewport.pack(fill="both", expand=True)
+        self.canvas = tk.Canvas(viewport, bg=BG, highlightthickness=0, takefocus=True)
+        scrollbar = ttk.Scrollbar(viewport, orient="vertical", command=self.canvas.yview)
+        scrollbar.pack(side="right", fill="y")
+        self.canvas.configure(yscrollcommand=scrollbar.set)
+        self.canvas.pack(side="left", fill="both", expand=True)
+        self.cards = tk.Frame(self.canvas, bg=BG)
+        layer = self.canvas.create_window(0, 0, window=self.cards, anchor="nw")
+        self.cards.bind("<Configure>", lambda _: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
+        self.canvas.bind("<Configure>", lambda event: self.canvas.itemconfigure(layer, width=event.width))
+        root.bind("<MouseWheel>", lambda event: self.canvas.yview_scroll(-int(event.delta / 120), "units"))
+        self.canvas.bind("<Prior>", lambda _: self.canvas.yview_scroll(-1, "pages"))
+        self.canvas.bind("<Next>", lambda _: self.canvas.yview_scroll(1, "pages"))
 
     def keep_open(self):
-        # Closing hides this occurrence only. The database remains unread.
-        self.root.withdraw()
-
-    def remind_later(self):
-        if not self.active:
-            return
-        event_id = self.active["event_id"]
-        def apply(minutes):
-            snooze(self.db, event_id, minutes)
-            self.active = None
-            self.root.withdraw()
-        ask_snooze(self.root, apply)
-
-    def open_review(self):
-        if self.active:
-            url = self.active.get("url", "")
-            try:
-                validate_url(url)
-                webbrowser.open(url)
-            except (SourceError, ValueError, OSError, RuntimeError) as exc:
-                logging.warning("Could not open review: %s", exc)
-                self.status.configure(text="Could not open the listing.")
-
-    def confirm(self):
-        if not self.active:
-            return
+        clock = time.time()
+        prefs = policies(self.config_provider())
         try:
-            self.db.confirm_review(self.active["event_id"])
-        except Exception:
-            logging.exception("Could not save review confirmation")
-            self.status.configure(text="Could not save. Select Mark as read to try again.")
-            return
-        self.active = None
+            for (db, _), event in self.shown.items():
+                policy = prefs[event["kind"]]
+                if policy["mode"] == "popout" and due(db, event, policy, clock):
+                    remember(db, event, policy, clock)
+        except sqlite3.Error:
+            logging.exception("Could not save reminder dismissal")
+        self.shown.clear()
+        self.root.withdraw()
+        self.tick_soon()
+
+    def tick_soon(self):
         if self.timer is not None:
             self.root.after_cancel(self.timer)
-        self.refresh()
+        self.timer = self.root.after_idle(self.refresh)
+
+    def remind_later(self, key):
+        if key not in self.shown:
+            return
+        db, event_id = key
+
+        def apply(minutes):
+            snooze(db, event_id, minutes)
+            self.tick_soon()
+
+        self.snooze_dialog = True
+        try:
+            dialog = ask_snooze(self.root, apply)
+            self.root.wait_window(dialog)
+        finally:
+            self.snooze_dialog = False
+            self.tick_soon()
+
+    def open_review(self, event):
+        try:
+            url = event.get("url", "")
+            validate_url(url)
+            webbrowser.open(url)
+        except (SourceError, ValueError, OSError, RuntimeError):
+            self.status.configure(text="Could not open the source.")
+
+    def confirm(self, key=None):
+        key = key or next(iter(self.shown), None)
+        if key not in self.shown:
+            return
+        db, event_id = key
+        try:
+            db.confirm_review(event_id)
+        except sqlite3.Error:
+            logging.exception("Could not save acknowledgement")
+            self.status.configure(text="Could not save. Try Mark as read again.")
+            return
+        self.tick_soon()
 
     def refresh(self):
         try:
             if not self.is_active():
                 self.root.destroy()
                 return
-            prefs = policies(self.config_provider())
-            events = [e for e in awaiting_review(self.db) if prefs[e["kind"]]["mode"] != "none"]
-            if not events:
-                self.root.destroy()
-                return
-            clock = time.time()
-            for event in events:
+            if not self.snooze_dialog:
+                self.update_queue()
+        except Exception:
+            logging.exception("Could not refresh reminders")
+        if self.root.winfo_exists():
+            self.timer = self.root.after(5000, self.refresh)
+
+    def update_queue(self):
+        config = self.config_provider()
+        prefs = policies(config)
+        layout = popout_layout(config)
+        clock = time.time()
+        eligible, pending = {}, []
+        unread = False
+        for db in self.databases(config):
+            for event in awaiting_review(db):
                 policy = prefs[event["kind"]]
-                if (policy["mode"] == "windows" and due(self.db, event, policy, clock)
-                        and clock >= self.db.meta("notice_retry:" + event["event_id"], 0)):
-                    try:
-                        from pathlib import Path
-                        from urllib.parse import urlencode
-                        folder = Path(self.db.db.execute("PRAGMA database_list").fetchone()[2]).parent
-                        scope = folder.name
-                        query = urlencode({"scope": scope, "event": event["event_id"]})
-                        send({"title": "Fab Watch | " + LABELS[event["kind"]],
-                              "body": summary(event), "url": event.get("url"),
-                              "snooze_url": "fabwatch://snooze?" + query,
-                              "read_url": "fabwatch://read?" + query,
-                              "tag": event["event_id"][:16]})
-                        remember(self.db, event, policy, clock)
-                    except Exception:
-                        logging.exception("Windows notification failed; will retry")
-                        with self.db.db:
-                            self.db.set_meta("notice_retry:" + event["event_id"], clock + 300)
-            popouts = [e for e in events if prefs[e["kind"]]["mode"] == "popout"]
-            pending = [e for e in popouts if due(self.db, e, prefs[e["kind"]], clock)]
-            if self.active and all(e["event_id"] != self.active["event_id"] for e in popouts):
-                self.active = None
-                self.root.withdraw()
-            if self.active and (self.db.meta("snooze:" + self.active["event_id"], 0) or 0) > clock:
-                self.active = None
-                self.root.withdraw()
+                if policy["mode"] == "none":
+                    continue
+                unread = True
+                if policy["mode"] == "windows":
+                    self.deliver_windows(db, event, policy, clock)
+                else:
+                    key = db, event["event_id"]
+                    if (db.meta("snooze:" + key[1], 0) or 0) <= clock:
+                        eligible[key] = event
+                        if key not in self.shown and due(db, event, policy, clock):
+                            pending.append(key)
+
+        if not unread:
+            self.root.destroy()
+            return
+
+        retained = {key: event for key, event in self.shown.items() if key in eligible}
+        if layout == "sequential":
+            retained = dict(list(retained.items())[:1])
+        pending.sort(key=lambda key: (eligible[key]["detected_at"], key[1]))
+        if layout == "sequential":
+            pending = [] if retained else pending[:1]
+        visible = {**retained, **{key: eligible[key] for key in pending}}
+        if tuple(visible) == tuple(self.shown) and layout == self.layout:
+            return
+
+        if visible:
+            self.render(visible)
+            self.root.deiconify()
             if pending:
-                self.active = pending[0]
-                self.policy = prefs[self.active["kind"]]
-                self.render(len(events))
-                self.root.deiconify()
-                self.root.attributes("-topmost", True)
                 self.root.lift()
                 self.root.bell()
-                remember(self.db, self.active, self.policy, clock)
-                logging.info("Activity reminder displayed: %s", self.active["event_id"])
-            elif self.active:
-                self.policy = prefs[self.active["kind"]]
-                self.render(len(events))
-        except Exception:
-            logging.exception("Review reminder could not read pending reviews")
-        self.timer = self.root.after(5000, self.refresh)
+            for db, event_id in pending:
+                event = visible[db, event_id]
+                remember(db, event, prefs[event["kind"]], clock)
+        else:
+            self.root.withdraw()
+        self.shown, self.layout = visible, layout
 
-    def render(self, count):
-        test = bool(self.active.get("test"))
-        comment = self.active["kind"] == "new_comment"
-        kind = LABELS.get(self.active["kind"], "message")
-        self.root.title(f"Fab Watch | {'Test' if test else 'New'} {kind}")
-        self.open_button.configure(state="disabled" if test else "normal",
-                                   text="Open discussion" if comment else "Open on Fab")
-        review = self.active.get("review") or {}
-        if comment:
-            parser = PlainText()
-            parser.feed(self.active.get("content_html") or "")
-            review = {"authorDisplayName": self.active.get("author"),
-                      "createdAt": self.active.get("created_at"), "content": " ".join(parser.parts)}
-        if self.active["kind"] not in ("new_review", "new_comment"):
-            review = {"title": self.active.get("title"), "content": summary(self.active, 2000),
-                      "createdAt": self.active.get("created_at")}
-            self.open_button.configure(text="Open announcement" if self.active["kind"].startswith("engine_") else "Open source")
-        self.heading.configure(text=self.active.get("product") or LABELS.get(self.active["kind"], "New message"))
-        bits = [review.get("authorDisplayName"), str(review.get("createdAt") or "")[:10]]
-        if review.get("rating") is not None:
-            bits.append(f'{review["rating"]}/5')
-        self.details.configure(text=" · ".join(str(bit) for bit in bits if bit))
-        self.body.configure(state="normal")
-        self.body.delete("1.0", "end")
-        self.body.insert("1.0", "\n\n".join(
-            str(part) for part in (review.get("title"), review.get("content")) if part))
-        self.body.configure(state="disabled")
-        self.status.configure(text=("TEST · " if test else "") +
-                              f"Unread messages: {count}. " +
-                              (f"Repeats every {self.policy.get('repeat', 10)} minutes. " if self.policy.get("repeat", 10) else "Shown once. ") +
-                              "Closing hides this reminder; Mark as read stops it.")
+    def deliver_windows(self, db, event, policy, clock):
+        key = event["event_id"]
+        if not due(db, event, policy, clock) or clock < db.meta("notice_retry:" + key, 0):
+            return
+        try:
+            folder = Path(db.db.execute("PRAGMA database_list").fetchone()[2]).parent
+            query = urlencode({"scope": folder.name, "event": key})
+            send({"title": "Fab Watch | " + LABELS[event["kind"]],
+                  "body": summary(event), "url": event.get("url"),
+                  "snooze_url": "fabwatch://snooze?" + query,
+                  "read_url": "fabwatch://read?" + query,
+                  "tag": key[:16]})
+            remember(db, event, policy, clock)
+        except Exception:
+            logging.exception("Windows notification failed; will retry")
+            with db.db:
+                db.set_meta("notice_retry:" + key, clock + 300)
+
+    def render(self, events):
+        position = self.canvas.yview()[0]
+        for widget in self.cards.winfo_children():
+            widget.destroy()
+        kind = LABELS[next(iter(events.values()))["kind"]]
+        heading = f"{len(events)} reminders" if len(events) > 1 else kind
+        if all(event.get("test") for event in events.values()):
+            heading = "Test · " + heading
+        self.root.title("Fab Watch | " + heading)
+        self.heading.configure(text=heading)
+        self.status.configure(text="")
+        for key, event in events.items():
+            self.render_card(key, event)
+        self.canvas.yview_moveto(position if len(events) > 1 else 0)
+
+    def render_card(self, key, event):
+        title, author, stamp, subject, body, rating = card_content(event)
+        card = tk.Frame(self.cards, bg=PANEL, padx=14, pady=12, highlightthickness=1, highlightbackground=EDGE)
+        card.pack(fill="x", pady=(0, 8))
+
+        def line(text, size, color=TEXT, weight="normal"):
+            if text:
+                tk.Label(card, text=text, bg=PANEL, fg=color, font=(FONT, size, weight), anchor="w",
+                         justify="left", wraplength=475).pack(fill="x", pady=(0, 5))
+
+        line(LABELS[event["kind"]], 9, ACCENT, "bold")
+        line(title or LABELS[event["kind"]], 13, weight="bold")
+        line(" · ".join(str(part) for part in (author, str(stamp or "")[:10]) if part), 9, MUTED)
+        line(rating, 16, "#ffd478", "bold")
+        line(subject, 10, weight="bold")
+        line(body or "No message text.", 10)
+        controls = ttk.Frame(card)
+        controls.pack(fill="x", pady=(7, 0))
+        if event.get("url") and not event.get("test"):
+            ttk.Button(controls, text="Open source", command=lambda: self.open_review(event)).pack(side="left")
+        ttk.Button(controls, text="Remind me later", command=lambda: self.remind_later(key)).pack(side="left", padx=5)
+        ttk.Button(controls, text="Mark as read", style="Accent.TButton",
+                   command=lambda: self.confirm(key)).pack(side="right")
 
 
 def run(data, is_active, theme):
     import runtime as rt
-    handler = RotatingFileHandler(data / "reminders.log", maxBytes=256000, backupCount=2, encoding="utf-8")
-    logging.basicConfig(level=logging.INFO, handlers=[handler], format="%(asctime)s %(levelname)s %(message)s")
     try:
-        with exclusive(data, "reminders.lock"):
-            db = Store(data / "monitor.sqlite")
+        with exclusive(rt.ROOT, "live-reminders.lock") if data is None else exclusive(data, "reminders.lock"):
+            databases = {}
+
+            def stores(config):
+                paths = set(rt.live_activity_paths(config)) if data is None else {data / "monitor.sqlite"}
+                for path in databases.keys() - paths:
+                    databases.pop(path).db.close()
+                for path in paths - databases.keys():
+                    if path.is_file():
+                        try:
+                            databases[path] = Store(path)
+                        except (OSError, sqlite3.Error):
+                            logging.exception("Could not open reminder database")
+                return tuple(databases.values())
+
             try:
-                if not awaiting_review(db):
+                if not any(awaiting_review(db) for db in stores(rt.settings())):
                     return 0
                 root = tk.Tk()
                 root.withdraw()
                 theme(root)
-                window = ReviewWindow(root, db, is_active, rt.settings)
+                window = ReviewWindow(root, stores, is_active, rt.settings)
                 root.after(0, window.refresh)
                 root.mainloop()
                 return 0
             finally:
-                db.db.close()
+                for db in databases.values():
+                    db.db.close()
     except BlockingIOError:
         return 0
     except Exception:
-        logging.exception("Could not run review reminders")
+        logging.exception("Could not run reminders")
         return 1

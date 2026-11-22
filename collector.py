@@ -161,12 +161,12 @@ def check_forum(db, product, thread_id, errors):
     if result is None:
         return False
     snapshot, events = result
-    with db.db:
-        for event in events:
-            if own_message(event):
-                event["silent"] = True
-            if event.get("silent"):
-                event["detected_at"] = event["created_at"]
-            db.event(identity("post", thread_id, event["post_id"]), event)
-        db.set_source(uid, stage, snapshot)
+    batch = []
+    for event in events:
+        if own_message(event):
+            event["silent"] = True
+        if event.get("silent"):
+            event["detected_at"] = event["created_at"]
+        batch.append((identity("post", thread_id, event["post_id"]), event))
+    db.commit_source_batch(uid, stage, snapshot, batch)
     return True
