@@ -4,9 +4,9 @@
 
 1. Check the event's status. **History**, **Seller** and **Read** are intentionally
    silent. An unread item may be snoozed or waiting for its repeat deadline.
-2. Open Notification settings. Confirm the event has a channel other than None.
+2. Open **Settings → Notifications**. Confirm the event has a channel other than None.
    Check interval and reminder interval have different meanings.
-3. Use the matching local Test button. Tests follow the same policy as real events.
+3. Choose the matching test in **Tools**. Tests follow the same policy as real events.
 4. For Windows notifications, check Windows Settings, notification permissions and
    Do Not Disturb. Try Popout if you need a dedicated reminder window.
 5. In Windows Task Scheduler, inspect `FabWatch-Check`, `FabWatch-Reviews`,
@@ -18,12 +18,12 @@ diagnose missed alerts and may reset a baseline. Closing an alert is not acknowl
 
 ## Fab or Epic could not be checked
 
-Open **Check details** for seller errors or read the Unreal Engine tab's status.
+Open **Tools → Check details** for seller errors or read the Unreal Engine tab's status.
 Confirm the source opens in your browser, then try again later. HTTP throttling,
 temporary outages or changed response formats can prevent a complete scan.
 Fab Watch retains the last successful checkpoint when this happens.
 
-If the problem repeats, check **Updates…** and the repository's existing issues.
+If the problem repeats, check **Tools → App updates…** and the repository's existing issues.
 Report the app version, Windows version, event type, error text and a public source
 URL if appropriate. Do not share tokens, cookies or complete local databases.
 

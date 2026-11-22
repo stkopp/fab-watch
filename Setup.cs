@@ -12,7 +12,7 @@ using Microsoft.Win32;
 internal static class Setup
 {
     const string Key = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\FabWatch";
-    const string Release = "1.3.1";
+    const string Release = "1.4.0";
     static readonly string Root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FabWatch");
     static readonly string App = Path.Combine(Root, "app");
     static readonly string Exe = Path.Combine(App, "FabWatch.exe");
@@ -39,7 +39,7 @@ internal static class Setup
                 {
                     if (!remove && !silent && File.Exists(Path.Combine(Root, "settings.json")))
                     {
-                        var choice = MessageBox.Show("A saved Fab Watch profile exists on this computer.\n\nYes: update and keep the profile, history and read confirmations.\nNo: start fresh with an empty Seller URL and no connected seller. The old profile will be backed up.\nCancel: leave everything unchanged.",
+                        var choice = MessageBox.Show("Keep your Fab Watch profile?\n\nYes: keep your settings, history and unread items.\nNo: back up your profile and start fresh.\nCancel: close setup.",
                             "Fab Watch Setup", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
                         if (choice == DialogResult.Cancel) return 0;
                         fresh = choice == DialogResult.No;

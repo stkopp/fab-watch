@@ -68,7 +68,8 @@ def show_existing():
 class TrayIcon:
     def __init__(self):
         self.events = queue.Queue()
-        self.hwnd = self.icon = None
+        self.hwnd = self.icon = self.unread_icon = None
+        self.unread = 0
         self.ready = False
         self.instance = kernel.GetModuleHandleW(None)
         self.callback = WNDPROC(self.dispatch)
@@ -85,9 +86,11 @@ class TrayIcon:
             self.icon = user.LoadImageW(None, str(Path(__file__).with_name("fab-watch.ico")), 1, 32, 32, 0x10)
             if not self.icon:
                 raise c.WinError(c.get_last_error())
+            self.unread_icon = user.LoadImageW(
+                None, str(Path(__file__).with_name("fab-watch-unread.ico")), 1, 32, 32, 0x10)
             self.data = NotifyData(cbSize=c.sizeof(NotifyData), hWnd=self.hwnd, uID=1,
                                    uFlags=7, uCallbackMessage=CALLBACK, hIcon=self.icon,
-                                   szTip="Fab Watch · Double-click to open")
+                                   szTip="Fab Watch · 0 unread")
             self.ready = bool(shell.Shell_NotifyIconW(0, c.byref(self.data)))
             if not self.ready:
                 raise OSError("Windows could not add the Fab Watch tray icon")
@@ -107,18 +110,28 @@ class TrayIcon:
             logging.exception("Tray action failed")
         return user.DefWindowProcW(hwnd, message, wp, lp)
 
+    def set_unread(self, count):
+        if not hasattr(self, "data") or self.unread == count:
+            return
+        self.data.hIcon = (self.unread_icon or self.icon) if count else self.icon
+        self.data.szTip = f"Fab Watch · {count} unread"
+        self.unread = count
+        if self.ready:
+            shell.Shell_NotifyIconW(1, c.byref(self.data))
+
     def menu(self, hwnd):
         menu = user.CreatePopupMenu()
         try:
-            for number, title in ((1, "Open Fab Watch"), (2, "Refresh now"),
-                                  (3, "Exit interface (checks continue)")):
+            for number, title in ((1, "Open Fab Watch"), (4, f"Unread activity ({self.unread})"),
+                                  (2, "Check now"), (3, "Exit interface")):
                 user.AppendMenuW(menu, 0, number, title)
             point = w.POINT()
             user.GetCursorPos(c.byref(point))
             user.SetForegroundWindow(hwnd)
             chosen = user.TrackPopupMenu(menu, 0x100 | 2, point.x, point.y, 0, hwnd, None)
-            if chosen in (1, 2, 3):
-                self.events.put({1: "show", 2: "refresh", 3: "exit"}[chosen])
+            actions = {1: "show", 2: "refresh", 3: "exit", 4: "unread"}
+            if chosen in actions:
+                self.events.put(actions[chosen])
             user.PostMessageW(hwnd, 0, 0, 0)
         finally:
             user.DestroyMenu(menu)
@@ -130,6 +143,9 @@ class TrayIcon:
         if self.hwnd:
             user.DestroyWindow(self.hwnd)
             self.hwnd = None
+        if self.unread_icon:
+            user.DestroyIcon(self.unread_icon)
+            self.unread_icon = None
         if self.icon:
             user.DestroyIcon(self.icon)
             self.icon = None

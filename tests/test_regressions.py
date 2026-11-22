@@ -173,13 +173,15 @@ class RevisionTests(unittest.TestCase):
         try:
             refresh_at(1000)
             self.assertEqual(root.state(), "normal")
-            root.tk.call(root.protocol("WM_DELETE_WINDOW"))
+            with patch("review_reminder.time.time", return_value=1001):
+                root.tk.call(root.protocol("WM_DELETE_WINDOW"))
             self.assertEqual(root.state(), "withdrawn")
             refresh_at(1599)
             self.assertEqual(root.state(), "withdrawn")
             refresh_at(1600)
             self.assertEqual(root.state(), "normal")
-            window.keep_open()
+            with patch("review_reminder.time.time", return_value=1601):
+                window.keep_open()
             if window.timer is not None:
                 root.after_cancel(window.timer)
             root.destroy()
@@ -311,6 +313,7 @@ class RevisionTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256(data).digest(), checksum)
         archive = zipfile.ZipFile(io.BytesIO(data))
         self.assertIn("_internal/fab-watch.ico", archive.namelist())
+        self.assertIn("_internal/fab-watch-unread.ico", archive.namelist())
         self.assertIn("_internal/licenses/FabWatch-MIT.txt", archive.namelist())
         self.assertIn("_internal/licenses/Python-LICENSE.txt", archive.namelist())
         self.assertIn("_internal/licenses/Tcl-8.6.12.txt", archive.namelist())

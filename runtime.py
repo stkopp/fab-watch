@@ -13,13 +13,13 @@ from xml.etree.ElementTree import Element, SubElement, tostring
 from authors import own_message
 import notifications
 import repairs
-from notification_policy import policies
+from notification_policy import policies, popout_layout
 import engine_releases
 from collector import collect
 from storage import Store, encode, exclusive, identity, write_file
 from transport import now
 
-VERSION = "1.3.1"
+VERSION = "1.4.0"
 ROOT = Path(os.environ["LOCALAPPDATA"]) / "FabWatch"
 CHECK_TASK = "FabWatch-Check"
 REVIEW_TASK = "FabWatch-Reviews"
@@ -42,6 +42,7 @@ def settings():
         config.setdefault("interval", 60)
         config.setdefault("auto_check_after_launch", True)
         policies(config)
+        popout_layout(config)
         if type(config["auto_check_after_launch"]) is not bool:
             raise ValueError("Invalid auto-check setting")
         if type(config["interval"]) is not int or config["interval"] not in INTERVALS:
@@ -154,6 +155,12 @@ def next_check(config, clock=None):
     if clock < start:
         return start
     return start + ((clock - start) // period + 1) * period
+
+
+def live_activity_paths(config):
+    if config.get("seller"):
+        yield profile(config["seller"]) / "monitor.sqlite"
+    yield ROOT / "engine" / "monitor.sqlite"
 
 
 def engine_folder():

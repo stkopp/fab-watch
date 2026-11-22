@@ -96,6 +96,13 @@ class Store:
     def set_source(self, uid, stage, value):
         self.db.execute("INSERT OR REPLACE INTO sources VALUES (?,?,?)", (uid, stage, encode(value)))
 
+    def commit_source_batch(self, scope, stage, checkpoint, events):
+        """Commit normalized (stable ID, payload) pairs with a complete snapshot."""
+        with self.db:
+            for key, event in events:
+                self.event(key, event)
+            self.set_source(scope, stage, checkpoint)
+
     def event(self, event_id, payload):
         self.db.execute("INSERT OR IGNORE INTO events VALUES (?,?,?,?,?,?)",
                         (event_id, encode(payload), payload.get("detected_at") or now(),

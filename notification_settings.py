@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from notification_policy import policies, LABELS
+from notification_policy import policies, LABELS, popout_layout
 from appearance import BG, TEXT, MUTED, FONT
 
 MODES = {"Popout": "popout", "Windows notifications": "windows", "None": "none"}
@@ -38,10 +38,15 @@ def open_settings(parent, config, on_save):
         mode.set(next(k for k, v in MODES.items() if v == policy["mode"]))
         mode.grid(row=row, column=3)
         fields[kind] = check, repeat, mode
-    text = ("Checks look for new events. Repeats continue until Mark as read in Activity / Unreal Engine.\n"
-            "Closing a Windows banner does not mark it read. Once sends just one notification.\n"
-            "None disables the selected channel; Check = None stops checking that engine type.\n"
-            "Engine checks run independently of your seller. Intervals: 5–10080 minutes.")
+    layouts = {"Show one at a time": "sequential", "Group in one window": "grouped"}
+    label("Multiple popouts", 8, 0)
+    layout = ttk.Combobox(frame, state="readonly", values=list(layouts), width=25)
+    layout.set(next(name for name, value in layouts.items() if value == popout_layout(config)))
+    layout.grid(row=8, column=1, columnspan=3, sticky="w")
+    text = ("Check intervals control when new items are found. Repeat intervals apply to unread items.\n"
+            "Use Mark as read to stop reminders. Once shows the item once.\n"
+            "Choose None to mute a channel or stop checking an engine type.\n"
+            "Enter an interval of 5–10080 minutes.")
     tk.Label(frame, text=text, bg=BG, fg=MUTED, justify="left", font=(FONT, 9)).grid(
         row=9, column=0, columnspan=4, sticky="w", pady=(16, 12))
     def save():
@@ -56,9 +61,13 @@ def open_settings(parent, config, on_save):
         except (ValueError, KeyError) as exc:
             messagebox.showerror("Notification settings", str(exc), parent=window)
             return
-        on_save(validated)
+        on_save({"notifications": validated, "popout_layout": layouts[layout.get()]})
         window.destroy()
     ttk.Button(frame, text="Save", style="Accent.TButton", command=save).grid(row=10, column=3, sticky="e")
     ttk.Button(frame, text="Cancel", command=window.destroy).grid(row=10, column=2, sticky="e", padx=12)
+    window.update_idletasks()
+    x = max(0, parent.winfo_rootx() + (parent.winfo_width() - window.winfo_reqwidth()) // 2)
+    y = max(0, parent.winfo_rooty() + (parent.winfo_height() - window.winfo_reqheight()) // 2)
+    window.geometry(f"+{x}+{y}")
     window.grab_set()
     return window

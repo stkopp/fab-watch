@@ -1,6 +1,6 @@
 # Fab Watch — instructions for coding agents
 
-This folder is the maintained Windows desktop project, based on release 1.3.1.
+This folder is the maintained Windows desktop project, based on release 1.4.0.
 Canonical repository: https://github.com/stkopp/fab-watch. License: MIT.
 Read this file, README.md and docs/ARCHITECTURE.md before making changes. No prior
 chat history or paths outside this repository are needed. Instructions apply to

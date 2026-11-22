@@ -13,6 +13,8 @@ import sources
 import updates
 from storage import Store, encode
 from notification_settings import open_settings
+from review_reminder import ReviewWindow
+from appearance import theme
 
 
 def demo():
@@ -35,6 +37,7 @@ def demo():
                     "uid": uid, "title": title, "kind": "listings", "url": "https://www.fab.com"})))
                 if i < 4:
                     db.set_source(uid, "forum_link", {"thread_id": i + 1})
+            db.set_meta("last_report", {"at": stamp.isoformat(), "errors": []})
             db.set_meta("last_run_at", stamp.isoformat())
             db.set_meta("last_success_at", stamp.isoformat())
             for i, (kind, title, author, content, state) in enumerate([
@@ -51,7 +54,8 @@ def demo():
                 if state == "seller":
                     event.update(author_id=10, owner_id=10)
                 if kind == "new_review":
-                    event["review"] = {"content": content, "title": "Sample review", "rating": 5}
+                    event["review"] = {"content": content, "title": "Sample review", "rating": 5,
+                                       "authorDisplayName": author, "createdAt": event["created_at"]}
                 else:
                     event["content_html"] = "<p>" + content + "</p>"
                 db.event(f"demo-{i}", event)
@@ -85,6 +89,22 @@ def demo():
             def dialog():
                 open_settings(root, view.config, lambda values: None)
             root.after(500, dialog)
+        if mode == "reminders":
+            root.withdraw()
+            db = Store(rt.profile(seller) / "monitor.sqlite")
+            try:
+                popup = tk.Toplevel(root)
+                theme(popup)
+                reminder = ReviewWindow(popup, db, lambda: True, lambda: {"popout_layout": "grouped"})
+                popup.geometry("640x620+220+120")
+                reminder.refresh()
+                popup.bind("<Destroy>", lambda event: root.quit() if event.widget is popup else None)
+                root.after(600000, root.quit)
+                root.mainloop()
+            finally:
+                db.db.close()
+                root.destroy()
+            return
         root.after(600000, root.destroy)
         root.mainloop()
 

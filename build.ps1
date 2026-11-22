@@ -15,6 +15,7 @@ $options = @('--noconfirm','--clean','--onedir','--windowed','--name','FabWatch'
     '--paths',$src,'--distpath',"$build\dist",'--workpath',"$build\obj",'--specpath',$build,
     '--icon',"$src\fab-watch.ico",'--add-data',"$src\fab-watch.png;.",
     '--add-data',"$src\fab-watch.ico;.",
+    '--add-data',"$src\fab-watch-unread.ico;.",
     '--add-data',"$build\licenses;licenses",
     '--add-data',"$src\toast.ps1;.","$src\app.py")
 & $Python -m PyInstaller @options
@@ -25,7 +26,7 @@ $references = @('/reference:System.Windows.Forms.dll','/reference:System.IO.Comp
     '/reference:System.IO.Compression.FileSystem.dll','/reference:Microsoft.CSharp.dll')
 & (Join-Path $framework 'csc.exe') /nologo /target:winexe "/out:$stub" "/win32icon:$src\fab-watch.ico" @references "$src\Setup.cs"
 if ($LASTEXITCODE -ne 0) { throw 'Setup build failed.' }
-$package = Join-Path $out 'FabWatchSetup-1.3.1-x64.exe'
+$package = Join-Path $out 'FabWatchSetup-1.4.0-x64.exe'
 @'
 import hashlib
 import io

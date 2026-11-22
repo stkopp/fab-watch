@@ -16,6 +16,13 @@ DEFAULTS = {
 }
 
 
+def popout_layout(config):
+    value = config.get("popout_layout", "sequential")
+    if value not in ("sequential", "grouped"):
+        raise ValueError("Invalid popout layout")
+    return value
+
+
 def policies(config):
     supplied = config.get("notifications", {})
     if not isinstance(supplied, dict) or set(supplied) - set(DEFAULTS):
@@ -66,6 +73,7 @@ def snooze(db, event_id, minutes, clock=None):
 
 
 def ask_snooze(parent, callback):
+    import sqlite3
     import tkinter as tk
     from tkinter import ttk, messagebox
     window = tk.Toplevel(parent)
@@ -83,10 +91,11 @@ def ask_snooze(parent, callback):
             if not 5 <= minutes <= 10080:
                 raise ValueError("Choose 5–10080 minutes")
             callback(minutes)
-        except (ValueError, OSError) as exc:
+        except (ValueError, OSError, sqlite3.Error) as exc:
             messagebox.showerror("Remind me later", str(exc), parent=window)
             return
         window.destroy()
     ttk.Button(frame, text="Remind me later", command=apply).pack(side="right")
     ttk.Button(frame, text="Cancel", command=window.destroy).pack(side="left")
     window.grab_set()
+    return window

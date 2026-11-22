@@ -29,7 +29,7 @@ from storage import Store, exclusive, needs_confirmation
 from transport import validate_url
 from windows_shell import TrayIcon, show_existing
 
-FILTERS = {"All activity": None, "Reviews": "new_review", "Discussions": "new_comment",
+FILTERS = {"All activity": None, "Unread": None, "Reviews": "new_review", "Discussions": "new_comment",
            "Ratings": "ratings_changed"}
 KINDS = {"new_review": "Review", "new_comment": "Discussion", "ratings_changed": "Rating",
          "edited_review": "Review edit", "monitor_error": "Source error"}
@@ -87,6 +87,8 @@ class App:
         self.tray = None
         self.engine_snapshot = None
         self.engine_events = {}
+        self.seller_unread = self.engine_unread = 0
+        self.displayed_unread = None
         self.root.title("Fab Watch")
         self.root.geometry("1050x745")
         self.root.minsize(820, 625)
@@ -107,20 +109,41 @@ class App:
         self.updates.badge.configure(cursor="hand2")
         self.updates.badge.bind("<Button-1>", lambda _: self.updates.open())
         self.updates.badge.pack(side="right")
+        self.refresh_button = ttk.Button(nav, text="Check now", style="Accent.TButton", command=self.refresh)
+        self.refresh_button.pack(side="right", padx=(8, 14))
+        self.unread_button = ttk.Button(nav, text="Unread · 0", command=self.show_unread)
+        self.unread_button.pack(side="right")
         status = tk.Frame(self.root, bg=PANEL, padx=18, pady=8)
         status.pack(side="bottom", fill="x")
         self.status = label(status, "Ready", color=MUTED, bg=PANEL)
         self.status.pack(side="left")
-        self.next = label(status, "Next update —", color=ACCENT, bg=PANEL)
+        self.next = label(status, "Next check —", color=ACCENT, bg=PANEL)
         self.next.pack(side="right")
         body = tk.Frame(self.root, bg=BG, padx=24, pady=18)
         body.pack(fill="both", expand=True)
-        self.seller_title = label(body, "Your seller activity", 24, weight="bold")
+        workspace = tk.Frame(body, bg=BG)
+        workspace.pack(fill="x", pady=(0, 10))
+        intro = tk.Frame(workspace, bg=BG)
+        intro.pack(side="left", fill="x", expand=True)
+        self.seller_title = label(intro, "Your Fab activity", 22, weight="bold")
         self.seller_title.pack(fill="x")
-        self.subtitle = label(body, "Connect a Fab seller profile to see its catalog and activity.", color=MUTED)
-        self.subtitle.pack(fill="x", pady=(4, 14))
+        self.subtitle = label(intro, "Add your seller link to start tracking reviews and comments.", color=MUTED)
+        self.subtitle.pack(fill="x", pady=(3, 0))
+        self.add_menu(workspace, "Tools", (
+            ("Check details", self.check_details),
+            ("Test review", self.test_review),
+            ("Test comment", self.test_comment),
+            ("Test engine alert", self.test_engine),
+            ("App updates…", self.updates.open),
+        )).pack(side="right", padx=(6, 0))
+        self.add_menu(workspace, "Settings", (
+            ("Seller and schedule", self.toggle_seller_settings),
+            ("Notifications…", self.notification_settings),
+        )).pack(side="right")
         settings = tk.Frame(body, bg=PANEL, padx=13, pady=10, highlightbackground=EDGE, highlightthickness=1)
-        settings.pack(fill="x", pady=(0, 12))
+        self.seller_settings = settings
+        if not self.config.get("seller"):
+            settings.pack(fill="x", pady=(0, 12))
         label(settings, "Seller URL", color=MUTED, bg=PANEL).grid(row=0, column=0, sticky="w")
         self.url = tk.StringVar()
         url_row = tk.Frame(settings, bg=PANEL)
@@ -144,16 +167,12 @@ class App:
         self.interval.set(f'{self.config["interval"]} min')
         self.interval.grid(row=1, column=2, padx=(0, 14))
         self.interval.bind("<<ComboboxSelected>>", self.change_interval)
-        self.refresh_button = ttk.Button(settings, text="Refresh now", style="Accent.TButton", command=self.refresh)
-        self.refresh_button.grid(row=1, column=3)
         settings.columnconfigure(0, weight=1)
         self.auto_check = tk.BooleanVar(value=self.config.get("auto_check_after_launch", True))
         self.auto_check_button = ttk.Checkbutton(settings, text="Auto check after PC launch",
                                                  variable=self.auto_check, command=self.change_auto_check)
         self.auto_check_button.grid(row=2, column=0, columnspan=4, sticky="w", pady=(9, 0))
 
-        top = tk.Frame(body, bg=BG)
-        top.pack(fill="x", pady=(0, 8))
         self.tabs = ttk.Notebook(body)
         self.tabs.pack(fill="both", expand=True)
         feed = tk.Frame(self.tabs, bg=BG, padx=10, pady=10)
@@ -162,14 +181,16 @@ class App:
         self.tabs.add(catalog, text="  Products  ")
         engine = tk.Frame(self.tabs, bg=BG, padx=10, pady=10)
         self.tabs.add(engine, text="  Unreal Engine  ")
-        self.engine_status = label(engine, "Waiting for the first engine check", color=MUTED)
-        self.engine_status.pack(fill="x", pady=(0, 8))
+        engine_bar = tk.Frame(engine, bg=BG)
+        engine_bar.pack(fill="x", pady=(0, 8))
+        self.engine_filter = ttk.Button(engine_bar, text="Show unread", command=self.toggle_engine_filter)
+        self.engine_filter.pack(side="right")
+        self.engine_status = label(engine_bar, "Waiting for the first engine check", color=MUTED)
+        self.engine_status.pack(side="left", fill="x", expand=True)
         controls = tk.Frame(engine, bg=BG)
         controls.pack(side="bottom", fill="x")
         ttk.Button(controls, text="Check engine now", command=self.check_engine).pack(side="left")
-        ttk.Button(controls, text="Test engine alert", command=lambda: self.run_job(
-            "Starting engine notification test…", lambda: rt.create_test_review("engine_release"))).pack(side="left", padx=6)
-        self.engine_open = ttk.Button(controls, text="Open announcement", command=self.open_engine, state="disabled")
+        self.engine_open = ttk.Button(controls, text="Open source", command=self.open_engine, state="disabled")
         self.engine_open.pack(side="right", padx=6)
         self.engine_read = ttk.Button(controls, text="Mark as read", command=self.mark_engine_read, state="disabled")
         self.engine_read.pack(side="right")
@@ -180,12 +201,6 @@ class App:
         self.engine_table = self.table(engine, (("Type", 130), ("Version", 100), ("Date", 160), ("Status", 120)), 7)
         self.engine_table.column("Type", stretch=True)
         self.engine_table.bind("<<TreeviewSelect>>", self.select_engine)
-        ttk.Button(top, text="Test review", command=self.test_review).pack(side="left", padx=(0, 6))
-        self.comment_test = ttk.Button(top, text="Test comment", command=self.test_comment)
-        self.comment_test.pack(side="left")
-        ttk.Button(top, text="Notification settings", command=self.notification_settings).pack(side="left", padx=8)
-        ttk.Button(top, text="Updates…", command=self.updates.open).pack(side="right")
-        ttk.Button(top, text="Check details", command=self.check_details).pack(side="right", padx=8)
         filters = tk.Frame(feed, bg=BG)
         filters.pack(fill="x", pady=(0, 8))
         label(filters, "Show", color=MUTED).pack(side="left", padx=(0, 8))
@@ -200,10 +215,6 @@ class App:
         self.newer_button.pack(side="right", padx=5)
         self.page_label = label(filters, color=MUTED)
         self.page_label.pack(side="right", padx=5)
-        self.feed = self.table(feed, (("Type", 105), ("Product", 250), ("From", 140), ("Date", 120), ("Status", 110)), 4)
-        self.set_sort_headers(self.feed, self.feed_sort, self.sort_feed)
-        self.feed.bind("<<TreeviewSelect>>", self.select)
-        self.feed.bind("<Double-Button-1>", lambda _: self.open_selected())
         commands = tk.Frame(feed, bg=BG)
         commands.pack(side="bottom", fill="x")
         self.detail = tk.Text(feed, height=3, wrap="word", relief="flat", bg=PANEL, fg=TEXT,
@@ -215,16 +226,64 @@ class App:
         self.later_button.pack(side="right", padx=6)
         self.open_button = ttk.Button(commands, text="Open source", command=self.open_selected, state="disabled")
         self.open_button.pack(side="right", padx=8)
+        self.feed = self.table(feed, (("Type", 105), ("Product", 250), ("From", 140), ("Date", 120), ("Status", 110)), 4)
+        self.set_sort_headers(self.feed, self.feed_sort, self.sort_feed)
+        self.feed.bind("<<TreeviewSelect>>", self.select)
+        self.feed.bind("<Double-Button-1>", lambda _: self.open_selected())
         self.catalog = self.table(catalog, (("Product", 380), ("Type", 100), ("Ratings", 90), ("Discussion", 115)), 12)
         self.set_sort_headers(self.catalog, self.product_sort, self.sort_products)
         self.catalog.bind("<Double-Button-1>", self.open_product)
         ttk.Button(catalog, text="Open selected product", command=self.open_product).pack(anchor="e", pady=(8, 0))
 
+        self.tabs.enable_traversal()
+        self.root.bind("<F5>", lambda _: self.refresh())
+        self.root.bind("<Control-u>", lambda _: self.show_unread())
+
+    @staticmethod
+    def add_menu(parent, title, actions):
+        button = ttk.Menubutton(parent, text=title)
+        menu = tk.Menu(button, tearoff=False, bg=PANEL, fg=TEXT, activebackground=EDGE, activeforeground=TEXT)
+        for name, action in actions:
+            menu.add_command(label=name, command=action)
+        button.configure(menu=menu)
+        return button
+
+    def toggle_seller_settings(self):
+        if self.seller_settings.winfo_manager():
+            self.seller_settings.pack_forget()
+        else:
+            self.seller_settings.pack(fill="x", pady=(0, 12), before=self.tabs)
+            self.url_entry.focus_set()
+
+    def test_engine(self):
+        self.run_job("Creating a test engine alert…", lambda: rt.create_test_review("engine_release"))
+
+    def show_unread(self):
+        self.show()
+        self.filter.set("Unread")
+        self.change_filter()
+        self.tabs.select(2 if self.engine_unread and not self.seller_unread else 0)
+
+    def toggle_engine_filter(self):
+        self.filter.set("All activity" if self.filter.get() == "Unread" else "Unread")
+        self.change_filter()
+
+    def update_unread(self):
+        total = self.seller_unread + self.engine_unread
+        counts = self.seller_unread, self.engine_unread
+        if counts != self.displayed_unread:
+            self.displayed_unread = counts
+            self.unread_button.configure(text=f"Unread · {total}")
+            self.tabs.tab(0, text=f"  Activity ({self.seller_unread})  " if self.seller_unread else "  Activity  ")
+            self.tabs.tab(2, text=f"  Unreal Engine ({self.engine_unread})  " if self.engine_unread else "  Unreal Engine  ")
+        if self.tray:
+            self.tray.set_unread(total)
+
     def notification_settings(self):
         if self.pending:
             return
         def save(values):
-            config = {**self.config, "notifications": values}
+            config = {**self.config, **values}
             def apply():
                 rt.configure_engine(config)
                 rt.save_settings(config)
@@ -238,8 +297,10 @@ class App:
         self.run_job("Checking Unreal Engine announcements…", lambda: rt.check_engine(config, force=True))
 
     def refresh_engine(self):
+        self.engine_filter.configure(text="Show all" if self.filter.get() == "Unread" else "Show unread")
         path = rt.ROOT / "engine" / "monitor.sqlite"
         if not path.exists():
+            self.engine_unread = 0
             return
         try:
             db = Store(path)
@@ -256,6 +317,11 @@ class App:
             text = ("Check failed: " + error if error else "Last check: " + format_time(success))
             text += "  ·  Next: " + (format_time(next_time) if next_time and next_time > datetime.now(timezone.utc) else "Due / waiting for worker" if times else "Disabled")
             self.engine_status.configure(text=text)
+            pending = [e for e in events if unread(e, e["acknowledged_at"], e["silent"], e["resolved_at"])
+                       and not e.get("test")]
+            self.engine_unread = len(pending)
+            if self.filter.get() == "Unread":
+                events = pending
             token = json.dumps(events, sort_keys=True)
             if token == self.engine_snapshot:
                 return
@@ -297,7 +363,7 @@ class App:
                 db.confirm_review(ids[0])
             finally:
                 db.db.close()
-            self.refresh_engine()
+            self.refresh_view()
 
     def snooze_selected(self):
         if self.selected and self.selected["unread"]:
@@ -358,6 +424,7 @@ class App:
 
     def enable_tray(self, hidden=False):
         self.tray = TrayIcon()
+        self.update_unread()
         self.root.protocol("WM_DELETE_WINDOW", self.close_window)
         if hidden and self.tray.ready:
             self.root.withdraw()
@@ -376,6 +443,8 @@ class App:
             action = self.tray.events.get_nowait()
             if action == "show":
                 self.show()
+            elif action == "unread":
+                self.show_unread()
             elif action == "refresh":
                 self.show()
                 self.refresh()
@@ -441,6 +510,8 @@ class App:
     def refresh(self):
         config = self.config.copy()
         if not config.get("seller"):
+            if not self.seller_settings.winfo_manager():
+                self.toggle_seller_settings()
             self.connect()
             return
         self.run_job("Refreshing catalog and activity…", lambda: rt.check(config))
@@ -496,10 +567,10 @@ class App:
         self.catalog.yview_moveto(0)
 
     def test_review(self):
-        self.run_job("Starting test review reminders…", rt.create_test_review)
+        self.run_job("Creating a test review…", rt.create_test_review)
 
     def test_comment(self):
-        self.run_job("Starting test comment reminders…", lambda: rt.create_test_review("new_comment"))
+        self.run_job("Creating a test comment…", lambda: rt.create_test_review("new_comment"))
 
     def poll(self):
         try:
@@ -511,6 +582,9 @@ class App:
             new_config = rt.settings()
             if new_config.get("seller") != self.config.get("seller"):
                 self.page = 0
+                self.seller_unread = 0
+                if new_config.get("seller"):
+                    self.seller_settings.pack_forget()
             self.config = new_config
             self.interval.set(f'{self.config["interval"]} min')
             self.auto_check.set(self.config.get("auto_check_after_launch", True))
@@ -526,9 +600,11 @@ class App:
         self.refresh_engine()
         seller = self.config.get("seller")
         next_run = rt.next_check(self.config)
-        self.next.configure(text=f"Next update  {format_time(next_run)}" if seller else "Next update  —")
+        self.next.configure(text=f"Next check  {format_time(next_run)}" if seller else "Next update  —")
         if not seller:
-            self.detail_text("Paste a Fab seller URL above and select Connect.")
+            self.seller_unread = 0
+            self.update_unread()
+            self.detail_text("Paste your Fab seller link and select Connect.")
             self.older_button.state(["disabled"])
             self.newer_button.state(["disabled"])
             return
@@ -540,15 +616,23 @@ class App:
                 self.read_snapshot(conn, force)
         except Exception:
             logging.exception("Could not read seller activity")
+            self.seller_unread = 0
             if not self.pending:
-                self.status.configure(text="Activity database unavailable", fg="#ffacac")
+                self.status.configure(text="Could not load activity. See the log for details.", fg="#ffacac")
+        self.update_unread()
 
     def read_snapshot(self, conn, force):
         meta = {key: json.loads(value) for key, value in conn.execute("SELECT key,value FROM meta")}
         report = meta.get("last_report") or {}
         count, latest, read, confirmed = conn.execute(
             "SELECT count(*),max(created),max(accepted),max(json_extract(value,'$.confirmed_by_user_at')) FROM events").fetchone()
-        token = (self.config["seller"]["id"], meta.get("last_run_at"), count, latest, read, confirmed)
+        conn.create_function("fab_unread", 4, lambda value, accepted, silent, resolved:
+                             unread(json.loads(value), accepted, silent, resolved))
+        unread_filter = ("silent=0 AND resolved IS NULL AND fab_unread(value,accepted,silent,resolved) "
+                         "AND COALESCE(json_extract(value,'$.test'),0)=0")
+        self.seller_unread = conn.execute(f"SELECT count(*) FROM events WHERE {unread_filter}").fetchone()[0]
+        token = (self.config["seller"]["id"], meta.get("last_run_at"), count, latest, read, confirmed,
+                 self.seller_unread)
         checking = meta.get("checking")
         active = checking and (datetime.now(timezone.utc) - datetime.fromisoformat(checking)).total_seconds() < 1500
         if not self.pending:
@@ -570,6 +654,8 @@ class App:
                             "('new_review','new_comment','ratings_changed','edited_review','monitor_error') "
                             "AND COALESCE(json_extract(value,'$.test'),0)=0 "
                             "AND (? IS NULL OR json_extract(value,'$.kind')=?)")
+        if self.filter.get() == "Unread":
+            where += " AND " + unread_filter
         size = conn.execute(f"SELECT count(*) FROM events {where}", (filter_kind, filter_kind)).fetchone()[0]
         last_page = max(0, (size - 1) // PAGE_SIZE)
         self.page = min(self.page, last_page)
@@ -760,18 +846,13 @@ def main():
         except BlockingIOError:
             pass
         return 0
-    if opts.engine_reminder:
-        return show_reminders(rt.engine_folder(), lambda: True, theme)
+    if opts.engine_reminder or opts.reminder:
+        return show_reminders(None, lambda: True, theme)
     if opts.test_reminder:
         folder = rt.ROOT / "test-reviews"
         if not (folder / "monitor.sqlite").exists():
             return 0
         return show_reminders(folder, lambda: True, theme)
-    if opts.reminder:
-        if not config.get("seller"):
-            return 0
-        return show_reminders(rt.profile(config["seller"]),
-            lambda: rt.settings().get("seller", {}).get("id") == config["seller"]["id"], theme)
     if opts.scheduled or opts.check_now:
         if config.get("seller"):
             try:

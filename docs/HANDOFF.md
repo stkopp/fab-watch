@@ -1,5 +1,79 @@
 # Source handoff
 
+## 1.4.0 update — 2026-11-22
+
+The six items below record the scope originally agreed for this update.
+See the [release notes](releases/1.4.0.md) for the changes users will see.
+
+1. **Edit the English copy.** Review GitHub's description, README, screenshots and
+   captions, guides, FAQ, templates and new release notes. Review the app's menus,
+   labels, notifications, tooltips, empty states, errors and installer prompts.
+   Start with the job the tool does: paste a Fab seller link to track reviews
+   and comments. Cut repeated feature lists, ranking/discovery commentary and
+   generic promotional language. Keep setup instructions and factual limitations
+   where users need them. Use the same words for the same actions throughout
+   the app, such as **Check now**, **Open source**, and **Mark as read**.
+2. **Disclose code provenance.** The public README, repository description, latest
+   release notes and matching source tree did not contain a statement that all
+   application code was AI-generated and had not been reviewed by a person.
+   The mention of AI-assisted contributors in the README is about contributions.
+   Add a short, visible README note near the download link. Suggested copy:
+   “Fab Watch’s application code was generated with AI and hasn’t been reviewed
+   by a person. The automated tests are public.” Update the wording when a human
+   review actually happens. Check that release copy makes the same distinction
+   between testing and review. Keep attribution for bundled third-party code.
+3. **Choose how multiple popouts appear.** Add an option under notification
+   settings with **Show one at a time** as the default for existing and new
+   profiles, and **Group in one window** as the alternative. In sequential mode
+   keep the current item visible until the user closes, snoozes or acknowledges
+   it, then show the next due item. The current worker can replace an active item
+   on a later tick. In grouped mode show a scrollable list with a separate
+   **Open source** link and read/snooze controls for each item with the applicable
+   action. Keep per-event delivery times and repeat policies. Closing either
+   layout, or opening a source, must not mark it read. Count only due popout
+   items in the group and respect disabled channels and snoozes. Coordinate
+   the seller and Engine reminder workers so they cannot show overlapping
+   live popouts in sequential mode. Keep synthetic tests separate from live
+   events. Windows notification delivery still follows its selected channel.
+4. **Redesign the reminder cards.** Give each event a clear type, title, source,
+   and readable message body. In both popout layouts display a prominent numeric
+   rating such as **4/5** plus filled/empty stars for a written review. The source
+   already stores the rating in `review.rating`, and the current single popout
+   places it in the metadata line. Use an accessible numeric label and avoid
+   color-only cues. Missing or invalid ratings have no star row. Comments,
+   engine announcements and aggregate rating changes have their own presentation.
+5. **Rework the main navigation and tray.** Start with Activity, Products and
+   Unreal Engine. Give unread activity and refresh a clear entry point, put
+   notification/account preferences where users can find them, and group
+   diagnostics, tests and updates under appropriate actions. Keep the native
+   desktop appearance, keyboard access and readable states at minimum window
+   size. Add an unread icon variant and count in the tray tooltip/menu, plus an
+   action that opens unread activity. Derive the count from persistent read
+   state for the active seller and Engine. Exclude silent history, own replies
+   and local test events. Snoozed items remain unread. Refresh the badge when
+   background checks, acknowledgements or profile changes affect the count,
+   including while the UI is hidden and after Explorer restarts. Document that
+   exiting the interface removes the tray icon while scheduled checks continue.
+6. **Prepare for sales and email monitoring.** Identify and introduce small
+   reusable boundaries between source fetching, normalized events/checkpoints,
+   local state and UI delivery. Prove them with an existing source and synthetic
+   fixtures. Keep the current SQLite profile and checkpoints readable. Design
+   for optional connectors that manage authentication and session storage
+   separately from public-source requests. An embedded browser is a future
+   option for sign-in. Keep any browser session isolated from the app and its
+   public fetcher. This release's scope is the extension points. Sales and
+   mailbox collection, a browser dependency, and login UI require a separate
+   design and explicit setup by users.
+
+Verify queue order and grouped links with several due events, including reviews
+and comments from different products and simultaneous seller/Engine events.
+Test per-item snooze and read state across restart and both display settings.
+Inspect ratings at 1/5, 5/5 and with no rating. Check the tray through background
+arrival, acknowledgement and Explorer restart. Use temporary profiles and mocked
+sources. Run the Windows suite and package checks before publishing, and refresh
+affected demo screenshots using synthetic data. Read [RELEASING.md](RELEASING.md)
+for the release procedure.
+
 ## Current: 1.3.1 public GitHub release — 2026-11-16
 
 Canonical source: https://github.com/stkopp/fab-watch. Owner selected MIT and

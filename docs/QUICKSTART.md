@@ -18,7 +18,7 @@ a publisher/reputation warning. Verify that your download came from this reposit
 Do not disable antivirus or Windows security. Release assets include SHA-256 checksums:
 
 ```powershell
-Get-FileHash .\FabWatchSetup-1.3.1-x64.exe -Algorithm SHA256
+Get-FileHash .\FabWatchSetup-1.4.0-x64.exe -Algorithm SHA256
 ```
 
 Compare the result with `SHA256SUMS.txt` from the same release. A checksum detects
@@ -30,8 +30,8 @@ corruption; it is not a code-signing certificate or a guarantee of safety.
 2. Paste it into **Seller URL**, then press **Connect**.
 3. Wait for the first catalog and activity scan. Existing messages become silent
    **History** so you are not flooded by old reviews.
-4. Choose **Check every**. The default is 60 minutes. **Refresh now** performs an
-   immediate catalog/activity check. New products are discovered during every scan.
+4. Use **Settings → Seller and schedule** to change the 60-minute check interval.
+   **Check now** scans the seller's catalog and activity, including new products.
 5. Use **Activity**, **Products**, and **Unreal Engine** to inspect results.
 
 Your seller replies are excluded using source identity information. The app needs
@@ -39,7 +39,7 @@ no Fab password, API token, ChatGPT subscription or always-running AI agent.
 
 ## Try notifications
 
-Press **Test review**, **Test comment**, or **Test engine alert**. These create
+In **Tools**, choose **Test review**, **Test comment**, or **Test engine alert**. These create
 local test events; they do not post anything to Fab or Epic. Test events use your
 notification policy, so an event configured with notification type **None** is silent.
 
@@ -49,7 +49,8 @@ deadlines survive app and Windows restarts. Tests use their own persistent datab
 
 ## Keep monitoring
 
-Closing the main window puts it in the tray. Scheduled checks continue even if
+Closing the main window puts it in the tray. Select **Unread activity** from the
+tray menu to see new items. A dot on the tray icon means there are unread items. Scheduled checks continue even if
 you exit the main UI. Windows must be running and your account signed in; an off
 or sleeping PC cannot deliver notifications. **Auto check after PC launch** is
 enabled by default and means a sign-in/catch-up check, not a pre-login service.
