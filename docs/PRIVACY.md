@@ -31,3 +31,11 @@ the CLI's settings before doing so. Normal monitoring does not invoke it.
 Before attaching diagnostic logs to an issue, inspect them for paths, message text
 and other content you do not want to publish. Never attach credentials or your full
 profile database. Synthetic reproductions are preferred.
+
+**Settings → GitHub issue reports** can send source format failures to the public
+Fab Watch repository. It is off by default. When enabled, GitHub CLI uses your
+signed-in account, which GitHub displays as the author. Fab Watch stores the path
+to the CLI. The report contains the app version, check type, error category,
+HTTP status and the types of recognized response fields. Reports omit source
+addresses, usernames, message text, local paths and logs. Connection failures
+are shown locally. Failed submissions are retried during later checks.

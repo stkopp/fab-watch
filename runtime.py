@@ -13,13 +13,14 @@ from xml.etree.ElementTree import Element, SubElement, tostring
 from authors import own_message
 import notifications
 import repairs
+import issue_reports
 from notification_policy import policies, popout_layout
 import engine_releases
-from collector import collect
+from collector import collect, source_attempt
 from storage import Store, encode, exclusive, identity, write_file
-from transport import now
+from transport import NETWORK_MESSAGE, connection_problem, now
 
-VERSION = "1.4.0"
+VERSION = "1.4.1"
 ROOT = Path(os.environ["LOCALAPPDATA"]) / "FabWatch"
 CHECK_TASK = "FabWatch-Check"
 REVIEW_TASK = "FabWatch-Reviews"
@@ -43,6 +44,8 @@ def settings():
         config.setdefault("auto_check_after_launch", True)
         policies(config)
         popout_layout(config)
+        if config.get("github_cli") is not None and not isinstance(config["github_cli"], str):
+            raise ValueError("Invalid GitHub CLI setting")
         if type(config["auto_check_after_launch"]) is not bool:
             raise ValueError("Invalid auto-check setting")
         if type(config["interval"]) is not int or config["interval"] not in INTERVALS:
@@ -215,14 +218,23 @@ def check_engine(config, force=False):
     with exclusive(folder):
         db = Store(folder / "monitor.sqlite")
         try:
-            engine_releases.collect(db, config, force)
-            notifications.update_health(db, [])
-        except Exception as exc:
-            logging.exception("Engine announcements unavailable")
+            errors = []
+            with source_attempt(errors, "engine", engine_releases.URL, db.meta("engine_last_success")):
+                engine_releases.collect(db, config, force)
+            if errors:
+                with db.db:
+                    db.set_meta("engine_error", NETWORK_MESSAGE if connection_problem(errors)
+                                else errors[0]["message"])
+                    db.set_meta("engine_last_attempt", now())
+            # A scheduler tick with no due scan must not clear the last failure.
+            if errors or not db.meta("engine_error"):
+                notifications.update_health(db, errors)
+            send_issue_reports(db, errors, config)
+        except Exception:
+            logging.exception("Could not check Unreal Engine announcements")
             with db.db:
-                db.set_meta("engine_error", str(exc)[:500])
+                db.set_meta("engine_error", "Could not finish the check. See the local log.")
                 db.set_meta("engine_last_attempt", now())
-            notifications.update_health(db, [{"stage": "engine", "message": str(exc)[:500]}])
         finally:
             if any(db.records(reminders=True)):
                 scheduler("/Run", "/TN", ENGINE_REMINDER_TASK, check=False)
@@ -271,6 +283,13 @@ def setup_logging():
     logging.basicConfig(handlers=[handler], level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
 
+def send_issue_reports(db, errors, config):
+    try:
+        issue_reports.process(db, errors, config.get("github_cli"), VERSION)
+    except Exception:
+        logging.exception("Could not update the public report queue")
+
+
 def check(config, scheduled=False, deliver=True):
     seller = config["seller"]
     folder = profile(seller)
@@ -291,6 +310,8 @@ def check(config, scheduled=False, deliver=True):
                     scheduler("/Run", "/TN", REVIEW_TASK, check=False)
             with db.db:
                 db.set_meta("last_report", report)
+            if deliver:
+                send_issue_reports(db, report["errors"], config)
             # Save reproducible incidents locally so connector fixes can ship with a new installer.
             for row in db.db.execute("SELECT id,value FROM incidents WHERE state='pending' AND active=1"):
                 if not (folder / "incidents" / row["id"] / "incident.json").exists():

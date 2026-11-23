@@ -40,6 +40,7 @@ def historical(stamp, start):
         return True
 
 
+@transport.connection_scope()
 def collect(db, seller):
     errors = []
     transport.cooldown = db.meta("cooldown", {})
@@ -103,7 +104,8 @@ def collect(db, seller):
         db.set_meta("last_errors", errors)
         if not errors:
             db.set_meta("last_success_at", now())
-    return {"status": "partial_failure" if errors else "ok", "products": len(active_ids),
+    status = "connection_unavailable" if transport.connection_problem(errors) else "partial_failure" if errors else "ok"
+    return {"status": status, "products": len(active_ids),
             "review_sources": review_checks, "forums": forum_checks, "errors": errors}
 
 

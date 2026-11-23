@@ -1,5 +1,16 @@
 # Source handoff
 
+## 1.4.1 — 2026-11-23
+
+Failed connections are visible in the check status. They do not create unread
+events or public reports. A source that fails to connect is retried on the next
+scan. Individual source checkpoints survive failed requests.
+
+The optional GitHub reporter keeps a small queue of structural failures in
+the local database and uses the user's authenticated GitHub CLI to file issues.
+The outgoing fields are rebuilt from an allowlist. Neither stack traces nor
+raw responses are uploaded. See [privacy](PRIVACY.md) for the user settings.
+
 ## 1.4.0 update — 2026-11-22
 
 The six items below record the scope originally agreed for this update.

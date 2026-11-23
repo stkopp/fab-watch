@@ -16,6 +16,7 @@
 | windows_shell.py | Native tray window, reopen signaling, menu and Explorer restart recovery |
 | appearance.py / fab-watch.* | Theme and bundled PNG/ICO resources |
 | repairs.py | Incident grouping, local diagnostic files, optional Codex diagnostic subprocess |
+| issue_reports.py | Opt-in public issue reporting from an allowlist of structural fields |
 | Setup.cs / build.ps1 | Per-user installation, archive-backed fresh start, rollback, shortcuts and packaging |
 
 ## Processes and state

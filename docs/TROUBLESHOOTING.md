@@ -24,6 +24,10 @@ temporary outages or changed response formats can prevent a complete scan.
 Fab Watch retains the last successful checkpoint when this happens.
 
 If the problem repeats, check **Tools → App updates…** and the repository's existing issues.
+If the status says the source could not be reached, the next check will retry it.
+For source format failures you can enable automatic public issues under
+**Settings → GitHub issue reports**. Sign into GitHub CLI first, then choose
+`gh.exe` in the dialog. See [what reports include](PRIVACY.md).
 Report the app version, Windows version, event type, error text and a public source
 URL if appropriate. Do not share tokens, cookies or complete local databases.
 

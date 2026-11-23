@@ -9,7 +9,7 @@ from pathlib import Path
 from authors import own_message
 
 from storage import encode, identity
-from transport import now, validate_url
+from transport import is_connection_error, now, validate_url
 
 
 class PlainText(HTMLParser):
@@ -55,6 +55,7 @@ def due(previous, hours=24):
 
 
 def update_health(db, errors):
+    errors = [error for error in errors if not is_connection_error(error)]
     health = [e for e in db.records(pending=True) if e["kind"] == "monitor_error"]
     with db.db:
         if errors and not health and due(db.meta("last_error_acknowledged_at")):
