@@ -12,7 +12,7 @@ using Microsoft.Win32;
 internal static class Setup
 {
     const string Key = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\FabWatch";
-    const string Release = "1.4.0";
+    const string Release = "1.4.1";
     static readonly string Root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FabWatch");
     static readonly string App = Path.Combine(Root, "app");
     static readonly string Exe = Path.Combine(App, "FabWatch.exe");

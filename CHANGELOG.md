@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.1 — 2026-11-23
+
+Connection failures now appear in the check status. Optional GitHub reporting
+files a public issue for a source format failure using structural diagnostics.
+
 ## 1.4.0 — 2026-11-22
 
 Added sequential and grouped popouts, review ratings on cards, unread counts and

@@ -26,7 +26,7 @@ $references = @('/reference:System.Windows.Forms.dll','/reference:System.IO.Comp
     '/reference:System.IO.Compression.FileSystem.dll','/reference:Microsoft.CSharp.dll')
 & (Join-Path $framework 'csc.exe') /nologo /target:winexe "/out:$stub" "/win32icon:$src\fab-watch.ico" @references "$src\Setup.cs"
 if ($LASTEXITCODE -ne 0) { throw 'Setup build failed.' }
-$package = Join-Path $out 'FabWatchSetup-1.4.0-x64.exe'
+$package = Join-Path $out 'FabWatchSetup-1.4.1-x64.exe'
 @'
 import hashlib
 import io

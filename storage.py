@@ -4,12 +4,14 @@ import sqlite3
 from contextlib import closing, contextmanager
 from pathlib import Path
 
-from transport import now
+from transport import connection_problem, now
 from authors import own_message
 
 
 def needs_confirmation(event, accepted, silent, resolved):
     if silent or resolved or event.get("confirmed_by_user_at") or own_message(event):
+        return False
+    if event["kind"] == "monitor_error" and connection_problem(event.get("errors", [])):
         return False
     return event["kind"] in ("new_comment", "engine_release", "engine_hotfix", "engine_preview") or (
         event["kind"] in ("new_review", "ratings_changed", "monitor_error") and not accepted)

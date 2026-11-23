@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import queue
+import shutil
 import sqlite3
 import struct
 import subprocess
@@ -17,6 +18,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
 import runtime as rt
+import issue_reports
 import sources
 from updates import UpdateUI
 from notification_policy import LABELS, policies, snooze, ask_snooze
@@ -26,7 +28,7 @@ from authors import own_message
 from notifications import send, summary
 from review_reminder import run as show_reminders
 from storage import Store, exclusive, needs_confirmation
-from transport import validate_url
+from transport import NETWORK_MESSAGE, SourceError, connection_problem, validate_url
 from windows_shell import TrayIcon, show_existing
 
 FILTERS = {"All activity": None, "Unread": None, "Reviews": "new_review", "Discussions": "new_comment",
@@ -77,6 +79,7 @@ class App:
         self.root = root
         self.config = rt.settings()
         self.pending = False
+        self.connection_status = None
         self.results = queue.Queue()
         self.events, self.products = {}, {}
         self.selected = None
@@ -139,6 +142,7 @@ class App:
         self.add_menu(workspace, "Settings", (
             ("Seller and schedule", self.toggle_seller_settings),
             ("Notifications…", self.notification_settings),
+            ("GitHub issue reports…", self.github_report_settings),
         )).pack(side="right")
         settings = tk.Frame(body, bg=PANEL, padx=13, pady=10, highlightbackground=EDGE, highlightthickness=1)
         self.seller_settings = settings
@@ -292,6 +296,53 @@ class App:
             self.run_job("Saving notification settings…", apply)
         open_settings(self.root, self.config, save)
 
+    def github_report_settings(self):
+        if self.pending:
+            return
+        window = tk.Toplevel(self.root)
+        window.title("GitHub issue reports")
+        window.transient(self.root)
+        frame = ttk.Frame(window, padding=18)
+        frame.pack(fill="both", expand=True)
+        ttk.Label(frame, wraplength=425, justify="left", text=(
+            "Send source format failures to the public Fab Watch issue tracker. "
+            "Reports contain the app version, check type, HTTP status and response structure. "
+            "GitHub lists your signed-in CLI account as the author."
+        )).pack(anchor="w")
+        enabled = tk.BooleanVar(value=bool(self.config.get("github_cli")))
+        ttk.Checkbutton(frame, text="Send public issue reports", variable=enabled).pack(anchor="w", pady=8)
+        path = tk.StringVar(value=self.config.get("github_cli") or shutil.which("gh.exe") or "")
+        row = ttk.Frame(frame)
+        row.pack(fill="x", pady=(0, 12))
+        ttk.Entry(row, textvariable=path, width=40).pack(side="left", fill="x", expand=True)
+
+        def browse():
+            selected = filedialog.askopenfilename(parent=window, title="Choose GitHub CLI (gh.exe)",
+                                                  filetypes=[("GitHub CLI", "gh.exe")])
+            if selected:
+                path.set(selected)
+                enabled.set(True)
+
+        def save():
+            try:
+                executable = str(issue_reports.cli_path(path.get())) if enabled.get() else None
+            except ValueError as exc:
+                messagebox.showerror(window.title(), str(exc), parent=window)
+                return
+
+            def apply():
+                if executable:
+                    issue_reports.check_auth(executable)
+                rt.save_settings({**rt.settings(), "github_cli": executable})
+
+            window.destroy()
+            self.run_job("Saving GitHub issue settings…", apply)
+
+        ttk.Button(row, text="Browse…", command=browse).pack(side="right", padx=(8, 0))
+        ttk.Button(frame, text="Save", command=save, style="Accent.TButton").pack(side="right")
+        ttk.Button(frame, text="Cancel", command=window.destroy).pack(side="right", padx=8)
+        window.grab_set()
+
     def check_engine(self):
         config = self.config.copy()
         self.run_job("Checking Unreal Engine announcements…", lambda: rt.check_engine(config, force=True))
@@ -314,7 +365,9 @@ class App:
             finally:
                 db.db.close()
             next_time = min(times) if times else None
-            text = ("Check failed: " + error if error else "Last check: " + format_time(success))
+            offline = error == NETWORK_MESSAGE or connection_problem([{"message": error}])
+            text = ("No connection to Unreal Engine" if offline else
+                    "Check failed: " + error if error else "Last check: " + format_time(success))
             text += "  ·  Next: " + (format_time(next_time) if next_time and next_time > datetime.now(timezone.utc) else "Due / waiting for worker" if times else "Disabled")
             self.engine_status.configure(text=text)
             pending = [e for e in events if unread(e, e["acknowledged_at"], e["silent"], e["resolved_at"])
@@ -475,6 +528,7 @@ class App:
         if self.pending:
             return
         self.pending = True
+        self.connection_status = None
         self.status.configure(text=message, fg=ACCENT)
         for button in (self.connect_button, self.refresh_button, self.interval, self.auto_check_button):
             button.state(["disabled"])
@@ -485,6 +539,8 @@ class App:
                 self.results.put((result, None))
             except BlockingIOError:
                 self.results.put((None, "A background check is already running. Try again shortly."))
+            except SourceError as exc:
+                self.results.put((None, exc))
             except Exception as exc:
                 logging.exception("Fab Watch action failed")
                 self.results.put((None, str(exc)))
@@ -590,9 +646,15 @@ class App:
             self.auto_check.set(self.config.get("auto_check_after_launch", True))
             for button in (self.connect_button, self.refresh_button, self.interval, self.auto_check_button):
                 button.state(["!disabled"])
+            if isinstance(error, SourceError) and error.category == "connection":
+                self.connection_status = "No connection to Fab"
+                self.status.configure(text=self.connection_status, fg="#ffbf8c")
+                error = None
             self.refresh_view(force=True)
+            if not error and not self.connection_status and not self.config.get("seller"):
+                self.status.configure(text="Ready", fg=MUTED)
             if error:
-                messagebox.showerror("Fab Watch", error, parent=self.root)
+                messagebox.showerror("Fab Watch", str(error), parent=self.root)
         self.refresh_view()
         self.root.after(1800 if not self.pending else 300, self.poll)
 
@@ -637,10 +699,15 @@ class App:
         active = checking and (datetime.now(timezone.utc) - datetime.fromisoformat(checking)).total_seconds() < 1500
         if not self.pending:
             errors = report.get("errors", [])
-            status = ("Refreshing catalog and activity…" if active else
-                      f"{len(errors)} source issues · Last check {format_time(report.get('at'))}" if errors else
-                      f"Last check  {format_time(report.get('at'))}" if report else "Waiting for first check")
-            self.status.configure(text=status, fg="#ffbf8c" if errors and not active else MUTED)
+            if self.connection_status or connection_problem(errors) and not active:
+                status = self.connection_status or "No connection to the source"
+            elif active:
+                status = "Refreshing catalog and activity…"
+            elif errors:
+                status = f"{len(errors)} source issues · Last check {format_time(report.get('at'))}"
+            else:
+                status = f"Last check  {format_time(report.get('at'))}" if report else "Waiting for first check"
+            self.status.configure(text=status, fg="#ffbf8c" if (errors and not active) or self.connection_status else MUTED)
         if not force and token == self.snapshot:
             return
         self.snapshot = token
@@ -771,7 +838,8 @@ class App:
         finally:
             db.db.close()
         errors = report.get("errors", [])
-        text = "\n".join(f'{e["stage"]}: {e["message"]}' for e in errors[:12])
+        text = NETWORK_MESSAGE if connection_problem(errors) else "\n".join(
+            f'{e["stage"]}: {e["message"]}' for e in errors[:12])
         messagebox.showinfo("Check details", text or "No source errors in the last completed check.", parent=self.root)
 
     def update(self):
@@ -861,7 +929,7 @@ def main():
                     if not config.get("seller"):
                         return 0
                     report = rt.check(config, scheduled=opts.scheduled)
-                return 2 if report and report["errors"] else 0
+                return 2 if report and report["errors"] and not connection_problem(report["errors"]) else 0
             except BlockingIOError:
                 return 0
         return 0

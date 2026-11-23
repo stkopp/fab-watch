@@ -8,16 +8,16 @@ from pathlib import Path
 from tkinter import ttk
 from urllib.parse import urlencode
 
-from authors import own_message
 from appearance import ACCENT, BG, EDGE, FONT, MUTED, PANEL, TEXT
-from storage import Store, exclusive
+from storage import Store, exclusive, needs_confirmation
 from transport import SourceError, validate_url
 from notifications import PlainText, send, summary
 from notification_policy import policies, due, remember, LABELS, snooze, ask_snooze, popout_layout
 
 
 def awaiting_review(db):
-    return [event for event in db.records(reminders=True) if not own_message(event)]
+    return [event for event in db.records(reminders=True) if needs_confirmation(
+        event, event["acknowledged_at"], event["silent"], event["resolved_at"])]
 
 
 def rating_text(review):
